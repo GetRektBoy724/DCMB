@@ -12,26 +12,6 @@ PCHAR DcmbItoa(DWORD64 i)
 	return p;
 }
 
-/*DWORD64 DcmbGetKernelBase(PDRIVER_OBJECT driverObject) {
-	PKLDR_DATA_TABLE_ENTRY pThisModule = (PKLDR_DATA_TABLE_ENTRY)driverObject->DriverSection;
-	UNICODE_STRING ntoskrnlName;
-
-	RtlInitUnicodeString(&ntoskrnlName, L"ntoskrnl.exe");
-
-    // Get PsLoadedModuleList address
-	for (PLIST_ENTRY pListEntry = pThisModule->InLoadOrderLinks.Flink; pListEntry != &pThisModule->InLoadOrderLinks; pListEntry = pListEntry->Flink)
-	{
-		// Search for Ntoskrnl entry
-		PKLDR_DATA_TABLE_ENTRY pEntry = CONTAINING_RECORD(pListEntry, KLDR_DATA_TABLE_ENTRY, InLoadOrderLinks);
-		if (RtlCompareUnicodeString(&(pEntry->BaseDllName), &ntoskrnlName, TRUE))
-		{
-			return (DWORD64)pEntry->DllBase;
-		}
-	}
-
-	return 0;
-}*/
-
 DWORD64 DcmbGetKernelBase() {
 	PRTL_PROCESS_MODULES ModuleInformation = NULL;
 	NTSTATUS result;
