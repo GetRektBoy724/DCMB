@@ -6,4 +6,4 @@
 - Thread Creation Callback (Returns PspCreateThreadNotifyRoutine array address)
 - Image Load Callback (Returns PspLoadImageNotifyRoutine array address)
 - Registry RW Callback (Returns CallbackListHead doubly linked list address)
-- Object Creation Callback (Both Process and Thread object) (Returns PsProcessType and PsThreadType address)
+- Object Creation Callback (Both Process and Thread object) (Returns PsProcessType's and PsThreadType's CallbackList linked list address)
