@@ -7,3 +7,7 @@
 - Image Load Callback (Returns PspLoadImageNotifyRoutine array address)
 - Registry RW Callback (Returns CallbackListHead doubly linked list address)
 - Object Creation Callback (Both Process and Thread object) (Returns PsProcessType's and PsThreadType's CallbackList linked list address)
+
+# Usage
+Compile them, enable test signing mode, load it, and view the results through DebugView
+![image](https://user-images.githubusercontent.com/41237415/199712912-c06c8b30-cc43-4da6-b2fd-22fc046f2a74.png)
