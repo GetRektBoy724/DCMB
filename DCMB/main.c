@@ -11,40 +11,25 @@ NTSTATUS DriverEntry(PDRIVER_OBJECT pDriverObject, PUNICODE_STRING pRegistryPath
 	if (!Kernelbase)
 		return STATUS_SUCCESS;
 
-	strcpy(msg, "Kernel base address : ");
-	strcat(msg, DcmbItoa(Kernelbase));
-	DbgPrintEx(0, 0, msg);
-	RtlSecureZeroMemory(msg, 1024);
+	DbgPrintEx(0, 0, "[DCMB] Kernel base address : 0x%p", Kernelbase);
 	
-	strcpy(msg, "Load image callback array address : ");
-	strcat(msg, DcmbItoa(DcmbGetNotifyRoutineArray(Kernelbase, LoadImageCallback)));
-	DbgPrintEx(0, 0, msg);
-	RtlSecureZeroMemory(msg, 1024);
+	DbgPrintEx(0, 0, "[DCMB] Load image callback array address : 0x%p", DcmbGetNotifyRoutineArray(Kernelbase, LoadImageCallback));
+	DcmbEnumerateCallbacks(LoadImageCallback, Kernelbase);
 
-	strcpy(msg, "Process creation callback array address : ");
-	strcat(msg, DcmbItoa(DcmbGetNotifyRoutineArray(Kernelbase, ProcessCreationCallback)));
-	DbgPrintEx(0, 0, msg);
-	RtlSecureZeroMemory(msg, 1024);
+	DbgPrintEx(0, 0, "[DCMB] Process creation callback array address : 0x%p", DcmbGetNotifyRoutineArray(Kernelbase, ProcessCreationCallback));
+	DcmbEnumerateCallbacks(ProcessCreationCallback, Kernelbase);
 
-	strcpy(msg, "Thread creation callback array address : ");
-	strcat(msg, DcmbItoa(DcmbGetNotifyRoutineArray(Kernelbase, ThreadCreationCallback)));
-	DbgPrintEx(0, 0, msg);
-	RtlSecureZeroMemory(msg, 1024);
+	DbgPrintEx(0, 0, "[DCMB] Thread creation callback array address : 0x%p", DcmbGetNotifyRoutineArray(Kernelbase, ThreadCreationCallback));
+	DcmbEnumerateCallbacks(ThreadCreationCallback, Kernelbase);
 
-	strcpy(msg, "Registry RW callback list head address : ");
-	strcat(msg, DcmbItoa(DcmbGetNotifyRoutineArray(Kernelbase, RegistryCallback)));
-	DbgPrintEx(0, 0, msg);
-	RtlSecureZeroMemory(msg, 1024);
+	DbgPrintEx(0, 0, "[DCMB] Registry RW callback list head address : 0x%p", DcmbGetNotifyRoutineArray(Kernelbase, RegistryCallback));
+	DcmbEnumerateCallbacks(RegistryCallback, Kernelbase);
 	
-	strcpy(msg, "PsProcessType object callback list address : ");
-	strcat(msg, DcmbItoa(DcmbGetNotifyRoutineArray(Kernelbase, ProcessObjectCreationCallback)));
-	DbgPrintEx(0, 0, msg);
-	RtlSecureZeroMemory(msg, 1024);
+	DbgPrintEx(0, 0, "[DCMB] PsProcessType object callback list address : 0x%p", DcmbGetNotifyRoutineArray(Kernelbase, ProcessObjectCreationCallback));
+	DcmbEnumerateCallbacks(ProcessObjectCreationCallback, Kernelbase);
 
-	strcpy(msg, "PsThreadType object callback list address : ");
-	strcat(msg, DcmbItoa(DcmbGetNotifyRoutineArray(Kernelbase, ThreadObjectCreationCallback)));
-	DbgPrintEx(0, 0, msg);
-	RtlSecureZeroMemory(msg, 1024);
+	DbgPrintEx(0, 0, "[DCMB] PsThreadType object callback list address : 0x%p", DcmbGetNotifyRoutineArray(Kernelbase, ThreadObjectCreationCallback));
+	DcmbEnumerateCallbacks(ThreadObjectCreationCallback, Kernelbase);
 
 	return STATUS_SUCCESS;
 }

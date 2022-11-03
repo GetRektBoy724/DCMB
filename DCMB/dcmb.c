@@ -1,15 +1,15 @@
 #include "dcmb.h"
 
-PCHAR DcmbItoa(DWORD64 i)
-{
-	/* Room for UINT_DIGITS digits and '\0' */
-	static char buf[20 + 1];
-	char* p = buf + 20;	/* points to terminating '\0' */
-	do {
-		*--p = '0' + (i % 10);
-		i /= 10;
-	} while (i != 0);
-	return p;
+PCHAR DcmbGetBaseNameFromFullName(PCHAR FullName) {
+	SIZE_T FullNameLength = strlen(FullName);
+
+	for (SIZE_T i = FullNameLength; i > 0; i--) {
+		if (*(FullName + i) == '\\') {
+			return FullName + i + 1;
+		}
+	}
+
+	return NULL;
 }
 
 DWORD64 DcmbGetKernelBase() {
@@ -295,4 +295,133 @@ DWORD64 DcmbGetNotifyRoutineArray(DWORD64 KernelBase, DCMB_CALLBACK_TYPE Callbac
 	}
 
 	return PspNotifyRoutineArrayAddr;
+}
+
+BOOL ZbzrEnumerateDriver(DWORD64 CallbackAddress, PCHAR* DriverFound, PDWORD64 FoundDriverBase) {
+	PRTL_PROCESS_MODULES ModuleInformation = NULL;
+	NTSTATUS result;
+	ULONG SizeNeeded;
+	SIZE_T InfoRegionSize;
+	BOOL output = FALSE;
+	PROTOTYPE_ZWQUERYSYSTEMINFORMATION ZwQuerySystemInformation;
+	UNICODE_STRING ZWQSIName;
+
+	RtlInitUnicodeString(&ZWQSIName, L"ZwQuerySystemInformation");
+	ZwQuerySystemInformation = (PROTOTYPE_ZWQUERYSYSTEMINFORMATION)MmGetSystemRoutineAddress(&ZWQSIName);
+
+	// get info size
+	result = ZwQuerySystemInformation(0x0B, NULL, 0, &SizeNeeded);
+	if (result != 0xC0000004) {
+		return output;
+	}
+	InfoRegionSize = SizeNeeded;
+
+	// get info
+	while (result == 0xC0000004) {
+		InfoRegionSize += 0x1000;
+		ModuleInformation = (PRTL_PROCESS_MODULES)ExAllocatePool(NonPagedPoolNx, InfoRegionSize);
+		if (ModuleInformation == NULL) {
+			return output;
+		}
+
+		result = ZwQuerySystemInformation(0x0B, (PVOID)ModuleInformation, (ULONG)InfoRegionSize, &SizeNeeded);
+		if (!NT_SUCCESS(result)) {
+			ExFreePool((PVOID)ModuleInformation);
+			ModuleInformation = NULL;
+		}
+	}
+
+	if (!NT_SUCCESS(result)) {
+		return output;
+	}
+
+	// enumerate through the drivers
+	for (DWORD i = 0; i < ModuleInformation->NumberOfModules; i++) {
+		// check if callback address falls into the memmory range of the driver 
+		if (((DWORD64)ModuleInformation->Modules[i].ImageBase < CallbackAddress) && (CallbackAddress < ((DWORD64)ModuleInformation->Modules[i].ImageBase + ModuleInformation->Modules[i].ImageSize))) {
+			*DriverFound = ModuleInformation->Modules[i].FullPathName;
+			*FoundDriverBase = ModuleInformation->Modules[i].ImageBase;
+			output = TRUE;
+		}
+	}
+
+	// free the pool
+	ExFreePool((PVOID)ModuleInformation);
+
+	return output;
+}
+
+void DcmbEnumerateCallbacks(DCMB_CALLBACK_TYPE CallbackType, DWORD64 KernelBase) {
+	DWORD64 CallbackArrayAddr = DcmbGetNotifyRoutineArray(KernelBase, CallbackType);
+
+	if (CallbackType == RegistryCallback) {
+		PREGISTRY_CALLBACK_ITEM CurrentRegistryCallback = (PREGISTRY_CALLBACK_ITEM)CallbackArrayAddr;
+
+		while (TRUE) {
+			DWORD64 CurrentCallbackAddress = CurrentRegistryCallback->Function;
+
+			PCHAR DriverPath = NULL;
+			DWORD64 DriverBase = 0;
+			if (ZbzrEnumerateDriver(CurrentCallbackAddress, &DriverPath, &DriverBase)) {
+				DbgPrintEx(0, 0, "   [DCMB] Registry Read/Write : %s+0x%x = 0x%p", DcmbGetBaseNameFromFullName(DriverPath), CurrentCallbackAddress - DriverBase, CurrentCallbackAddress);
+			}
+
+			if ((PVOID)CurrentRegistryCallback->Item.Flink == (PVOID)CallbackArrayAddr)
+				break;
+
+			CurrentRegistryCallback = (PREGISTRY_CALLBACK_ITEM)CurrentRegistryCallback->Item.Flink;
+		}
+	}
+	else if (CallbackType == ProcessObjectCreationCallback || CallbackType == ThreadObjectCreationCallback) {
+		POB_CALLBACK_ENTRY CurrentObjectCallbackEntryItem = (POB_CALLBACK_ENTRY)CallbackArrayAddr;
+
+		do {
+			PCHAR DriverPath = NULL;
+			DWORD64 DriverBase = 0;
+			if (ZbzrEnumerateDriver((DWORD64)CurrentObjectCallbackEntryItem->PostOperation, &DriverPath, &DriverBase)) {
+				if (CallbackType == ProcessObjectCreationCallback) {
+					DbgPrintEx(0, 0, "   [DCMB] Process Object Post-Creation : %s+0x%x = 0x%p", DcmbGetBaseNameFromFullName(DriverPath), (DWORD64)CurrentObjectCallbackEntryItem->PostOperation - DriverBase, (DWORD64)CurrentObjectCallbackEntryItem->PostOperation);
+				}
+				else {
+					DbgPrintEx(0, 0, "   [DCMB] Thread Object Post-Creation : %s+0x%x = 0x%p", DcmbGetBaseNameFromFullName(DriverPath), (DWORD64)CurrentObjectCallbackEntryItem->PostOperation - DriverBase, (DWORD64)CurrentObjectCallbackEntryItem->PostOperation);
+				}
+			}
+
+			if (ZbzrEnumerateDriver((DWORD64)CurrentObjectCallbackEntryItem->PreOperation, &DriverPath, &DriverBase)) {
+				if (CallbackType == ProcessObjectCreationCallback) {
+					DbgPrintEx(0, 0, "   [DCMB] Process Object Pre-Creation : %s+0x%x = 0x%p", DcmbGetBaseNameFromFullName(DriverPath), (DWORD64)CurrentObjectCallbackEntryItem->PreOperation - DriverBase, (DWORD64)CurrentObjectCallbackEntryItem->PreOperation);
+				}
+				else {
+					DbgPrintEx(0, 0, "   [DCMB] Thread Object Pre-Creation : %s+0x%x = 0x%p", DcmbGetBaseNameFromFullName(DriverPath), (DWORD64)CurrentObjectCallbackEntryItem->PreOperation - DriverBase, (DWORD64)CurrentObjectCallbackEntryItem->PreOperation);
+				}
+			}
+			CurrentObjectCallbackEntryItem = (POB_CALLBACK_ENTRY)CurrentObjectCallbackEntryItem->CallbackList.Flink;
+		} while ((DWORD64)CurrentObjectCallbackEntryItem->CallbackList.Flink != (DWORD64)CallbackArrayAddr);
+	}
+	else {
+		for (int i = 0; i < 64; i++) {
+			DWORD64 CurrentCallback = *(PDWORD64)(CallbackArrayAddr + (i * 8));
+
+			// skip null entries
+			if (CurrentCallback == 0)
+				continue;
+
+			DWORD64 CurrentCallbackAddress = *(PDWORD64)(CurrentCallback &= ~(1ULL << 3) + 0x1);
+
+			// do some checks
+			PCHAR DriverPath = NULL;
+			DWORD64 DriverBase = 0;
+			if (ZbzrEnumerateDriver(CurrentCallbackAddress, &DriverPath, &DriverBase)) {
+				if (CallbackType == ProcessCreationCallback) {
+					DbgPrintEx(0, 0, "   [DCMB] Process Creation : %s+0x%x = 0x%p", DcmbGetBaseNameFromFullName(DriverPath), CurrentCallbackAddress - DriverBase, CurrentCallbackAddress);
+				}
+				else if (CallbackType == ThreadCreationCallback) {
+					DbgPrintEx(0, 0, "   [DCMB] Thread Creation : %s+0x%x = 0x%p", DcmbGetBaseNameFromFullName(DriverPath), CurrentCallbackAddress - DriverBase, CurrentCallbackAddress);
+				}
+				else {
+					DbgPrintEx(0, 0, "   [DCMB] Load Image : %s+0x%x = 0x%p", DcmbGetBaseNameFromFullName(DriverPath), CurrentCallbackAddress - DriverBase, CurrentCallbackAddress);
+				}
+			}
+		}
+	}
 }
