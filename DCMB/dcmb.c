@@ -188,8 +188,7 @@ DWORD64 DcmbGetNotifyRoutineArray(DWORD64 KernelBase, DCMB_CALLBACK_TYPE Callbac
 
 		case ProcessObjectCreationCallback: {
 			WORD RoutineSyscallIndex = DcmbGetRoutineSyscallIndex("NtSuspendProcess");
-			if (!RoutineSyscallIndex)
-				break;
+			if (!RoutineSyscallIndex) break;
 
 			NotifyRoutineAddr = DcmbGetRoutineFromSSDT(KernelBase, RoutineSyscallIndex);
 			break;
@@ -197,15 +196,14 @@ DWORD64 DcmbGetNotifyRoutineArray(DWORD64 KernelBase, DCMB_CALLBACK_TYPE Callbac
 
 		case ThreadObjectCreationCallback: {
 			WORD RoutineSyscallIndex = DcmbGetRoutineSyscallIndex("NtSuspendThread");
-			if (!RoutineSyscallIndex)
-				break;
+			if (!RoutineSyscallIndex) break;
 
 			NotifyRoutineAddr = DcmbGetRoutineFromSSDT(KernelBase, RoutineSyscallIndex);
 			break;
 		}
 
 		case RegistryCallback: {
-			RtlInitUnicodeString(&NotifyRoutineName, L"CmUnRegisterCallback");
+			RtlInitUnicodeString(&NotifyRoutineName, L"CmRegisterCallback");
 			NotifyRoutineAddr = MmGetSystemRoutineAddress(&NotifyRoutineName);
 			break;
 		}
@@ -219,29 +217,40 @@ DWORD64 DcmbGetNotifyRoutineArray(DWORD64 KernelBase, DCMB_CALLBACK_TYPE Callbac
 		return 0;
 	}
 
+	//DbgPrintEx(0, 0, "CmRegisterCallback = 0x%p", NotifyRoutineAddr);
+
 	// check for CALL or JMP instruction
-	if (CallbackType == RegistryCallback) {
-		PspNotifyRoutineAddr = NotifyRoutineAddr;
-	}
-	else if (CallbackType == ProcessObjectCreationCallback || CallbackType == ThreadObjectCreationCallback) {
+	if (CallbackType == ProcessObjectCreationCallback || CallbackType == ThreadObjectCreationCallback) {
 		RtlInitUnicodeString(&NotifyRoutineName, L"ObReferenceObjectByHandle");
 		DWORD64 ObReferenceObjectByHandleAddr = (DWORD64)MmGetSystemRoutineAddress(&NotifyRoutineName);
 		RtlInitUnicodeString(&NotifyRoutineName, L"ObReferenceObjectByHandleWithTag");
 		DWORD64 ObReferenceObjectByHandleWithTagAddr = (DWORD64)MmGetSystemRoutineAddress(&NotifyRoutineName);
-		DWORD ObReferenceObjectByHandleOffset = 0;
-		DWORD ObReferenceObjectByHandleWithTagOffset = 0;
+		DWORD64 ObpReferenceObjectByHandleWithTagAddr = 0;
+		if (ObReferenceObjectByHandleWithTagAddr) {
+			// get ObpReferenceObjectByHandleWithTag address
+			for (int i = 0; i < 100; i++) {
+				if (*(PBYTE)(ObReferenceObjectByHandleWithTagAddr + i) == 0xE8) {
+					ObpReferenceObjectByHandleWithTagAddr = ObReferenceObjectByHandleWithTagAddr + i + 5 + *(PLONG)(ObReferenceObjectByHandleWithTagAddr + i + 1);
+					break;
+				}
+			}
+		}
+		LONG ObReferenceObjectByHandleOffset = 0;
+		LONG ObReferenceObjectByHandleWithTagOffset = 0;
+		LONG ObpReferenceObjectByHandleWithTagOffset = 0;
 
 		for (int i = 0; i < 200; i++) {
 			// check if ObReferenceObjectByHandle is exist, if it is then calculate the offset
-			if (ObReferenceObjectByHandleAddr)
-				ObReferenceObjectByHandleOffset = ObReferenceObjectByHandleAddr - (NotifyRoutineAddr + i + 5);
+			if (ObReferenceObjectByHandleAddr) ObReferenceObjectByHandleOffset = ObReferenceObjectByHandleAddr - (NotifyRoutineAddr + i + 5);
 
 			// check if ObReferenceObjectByHandleWithTag is exist, if it is then calculate the offset
-			if (ObReferenceObjectByHandleWithTagAddr)
-				ObReferenceObjectByHandleWithTagOffset = ObReferenceObjectByHandleWithTagAddr - (NotifyRoutineAddr + i + 5);
+			if (ObReferenceObjectByHandleWithTagAddr) ObReferenceObjectByHandleWithTagOffset = ObReferenceObjectByHandleWithTagAddr - (NotifyRoutineAddr + i + 5);
+
+			// check if ObpReferenceObjectByHandleWithTag is exist, if it is then calculate the offset
+			if (ObpReferenceObjectByHandleWithTagAddr) ObpReferenceObjectByHandleWithTagOffset = ObpReferenceObjectByHandleWithTagAddr - (NotifyRoutineAddr + i + 5);
 
 			// check if the offset is valid with our calculation
-			if (*(PBYTE)(NotifyRoutineAddr + i) == 0xE8 && (*(PDWORD)(NotifyRoutineAddr + i + 1) == ObReferenceObjectByHandleOffset || *(PDWORD)(NotifyRoutineAddr + i + 1) == ObReferenceObjectByHandleWithTagOffset)) {
+			if (*(PBYTE)(NotifyRoutineAddr + i) == 0xE8 && (*(PLONG)(NotifyRoutineAddr + i + 1) == ObReferenceObjectByHandleOffset || *(PLONG)(NotifyRoutineAddr + i + 1) == ObReferenceObjectByHandleWithTagOffset || *(PLONG)(NotifyRoutineAddr + i + 1) == ObpReferenceObjectByHandleWithTagOffset)) {
 				PspNotifyRoutineAddr = NotifyRoutineAddr + i;
 				break;
 			}
@@ -250,7 +259,7 @@ DWORD64 DcmbGetNotifyRoutineArray(DWORD64 KernelBase, DCMB_CALLBACK_TYPE Callbac
 	else {
 		for (int i = 0; i < 200; i++) {
 			if (*(PBYTE)(NotifyRoutineAddr + i) == 0xE9 || *(PBYTE)(NotifyRoutineAddr + i) == 0xE8) {
-				DWORD PspNotifyRoutineOffset = *(PDWORD)(NotifyRoutineAddr + i + 1);
+				LONG PspNotifyRoutineOffset = *(PLONG)(NotifyRoutineAddr + i + 1);
 				PspNotifyRoutineAddr = NotifyRoutineAddr + i + 5 + PspNotifyRoutineOffset;
 				break;
 			}
@@ -261,12 +270,24 @@ DWORD64 DcmbGetNotifyRoutineArray(DWORD64 KernelBase, DCMB_CALLBACK_TYPE Callbac
 		return 0;
 	}
 
+	//DbgPrintEx(0, 0, "PspNotifyRoutineAddr = 0x%p", PspNotifyRoutineAddr);
+
 	if (CallbackType == RegistryCallback) {
-		// we scan backwards
-		for (int i = 175; i > 0; i--) {
-			if ((*(PBYTE)(PspNotifyRoutineAddr + i) == 0x48 || *(PBYTE)(PspNotifyRoutineAddr + i) == 0x4C) && *(PBYTE)(PspNotifyRoutineAddr + i + 1) == 0x8D) {
-				DWORD PspNotifyRoutineArrayOffset = *(PDWORD)(PspNotifyRoutineAddr + i + 3);
-				PspNotifyRoutineArrayAddr = PspNotifyRoutineAddr + i + 7 + PspNotifyRoutineArrayOffset;
+		// we scan for last INT 3 instruction (0xCC)
+		DWORD64 CmpInsertCallbackInListByAltitudeAddr = 0;
+		for (int i = 0; i < 1024; i++) {
+			if (*(PBYTE)(PspNotifyRoutineAddr + i) == 0xCC) {
+				while (*(PBYTE)(PspNotifyRoutineAddr + i) == 0xCC) i++;
+				CmpInsertCallbackInListByAltitudeAddr = PspNotifyRoutineAddr + i;
+				break;
+			}
+		}
+
+		// start searching LEA instruction
+		for (int i = 0; i < 300; i++) {
+			if ((*(PBYTE)(CmpInsertCallbackInListByAltitudeAddr + i) == 0x4C) && *(PBYTE)(CmpInsertCallbackInListByAltitudeAddr + i + 1) == 0x8D) {
+				LONG PspNotifyRoutineArrayOffset = *(PLONG)(CmpInsertCallbackInListByAltitudeAddr + i + 3);
+				PspNotifyRoutineArrayAddr = CmpInsertCallbackInListByAltitudeAddr + i + 7 + PspNotifyRoutineArrayOffset;
 				break;
 			}
 		}
@@ -275,7 +296,7 @@ DWORD64 DcmbGetNotifyRoutineArray(DWORD64 KernelBase, DCMB_CALLBACK_TYPE Callbac
 		// we scan for MOV instruction, backwards
 		for (int i = 0; i < 50; i++) {
 			if ((*(PBYTE)(PspNotifyRoutineAddr - i) == 0x48 || *(PBYTE)(PspNotifyRoutineAddr - i) == 0x4C) && *(PBYTE)(PspNotifyRoutineAddr - i + 1) == 0x8B) {
-				DWORD PspNotifyRoutineArrayOffset = *(PDWORD)(PspNotifyRoutineAddr - i + 3);
+				LONG PspNotifyRoutineArrayOffset = *(PLONG)(PspNotifyRoutineAddr - i + 3);
 				PspNotifyRoutineArrayAddr = PspNotifyRoutineAddr - i + 7 + PspNotifyRoutineArrayOffset;
 				PspNotifyRoutineArrayAddr = *(PDWORD64)(PspNotifyRoutineArrayAddr) + 0xc8;
 				break;
@@ -286,8 +307,7 @@ DWORD64 DcmbGetNotifyRoutineArray(DWORD64 KernelBase, DCMB_CALLBACK_TYPE Callbac
 		// check for LEA instruction
 		for (int i = 0; i < 300; i++) {
 			if ((*(PBYTE)(PspNotifyRoutineAddr + i) == 0x48 || *(PBYTE)(PspNotifyRoutineAddr + i) == 0x4C) && *(PBYTE)(PspNotifyRoutineAddr + i + 1) == 0x8D) {
-
-				DWORD PspNotifyRoutineArrayOffset = *(PDWORD)(PspNotifyRoutineAddr + i + 3);
+				LONG PspNotifyRoutineArrayOffset = *(PLONG)(PspNotifyRoutineAddr + i + 3);
 				PspNotifyRoutineArrayAddr = PspNotifyRoutineAddr + i + 7 + PspNotifyRoutineArrayOffset;
 				break;
 			}
@@ -352,7 +372,8 @@ BOOL ZbzrEnumerateDriver(DWORD64 CallbackAddress, PCHAR* DriverFound, PDWORD64 F
 }
 
 void DcmbEnumerateCallbacks(DCMB_CALLBACK_TYPE CallbackType, DWORD64 KernelBase) {
-	DWORD64 CallbackArrayAddr = DcmbGetNotifyRoutineArray(KernelBase, CallbackType);
+	DWORD64 CallbackArrayAddr = 0;
+	if (!(CallbackArrayAddr = DcmbGetNotifyRoutineArray(KernelBase, CallbackType))) return;
 
 	if (CallbackType == RegistryCallback) {
 		PREGISTRY_CALLBACK_ITEM CurrentRegistryCallback = (PREGISTRY_CALLBACK_ITEM)CallbackArrayAddr;
@@ -363,7 +384,7 @@ void DcmbEnumerateCallbacks(DCMB_CALLBACK_TYPE CallbackType, DWORD64 KernelBase)
 			PCHAR DriverPath = NULL;
 			DWORD64 DriverBase = 0;
 			if (ZbzrEnumerateDriver(CurrentCallbackAddress, &DriverPath, &DriverBase)) {
-				DbgPrintEx(0, 0, "   [DCMB] Registry Read/Write : %s+0x%x = 0x%p", DcmbGetBaseNameFromFullName(DriverPath), CurrentCallbackAddress - DriverBase, CurrentCallbackAddress);
+				DbgPrintEx(0, 0, "   [DCMB] Registry Read/Write : %s+0x%x = 0x%p\n", DcmbGetBaseNameFromFullName(DriverPath), CurrentCallbackAddress - DriverBase, CurrentCallbackAddress);
 			}
 
 			if ((PVOID)CurrentRegistryCallback->Item.Flink == (PVOID)CallbackArrayAddr)
@@ -380,19 +401,19 @@ void DcmbEnumerateCallbacks(DCMB_CALLBACK_TYPE CallbackType, DWORD64 KernelBase)
 			DWORD64 DriverBase = 0;
 			if (ZbzrEnumerateDriver((DWORD64)CurrentObjectCallbackEntryItem->PostOperation, &DriverPath, &DriverBase)) {
 				if (CallbackType == ProcessObjectCreationCallback) {
-					DbgPrintEx(0, 0, "   [DCMB] Process Object Post-Creation : %s+0x%x = 0x%p", DcmbGetBaseNameFromFullName(DriverPath), (DWORD64)CurrentObjectCallbackEntryItem->PostOperation - DriverBase, (DWORD64)CurrentObjectCallbackEntryItem->PostOperation);
+					DbgPrintEx(0, 0, "   [DCMB] Process Object Post-Creation : %s+0x%x = 0x%p\n", DcmbGetBaseNameFromFullName(DriverPath), (DWORD64)CurrentObjectCallbackEntryItem->PostOperation - DriverBase, (DWORD64)CurrentObjectCallbackEntryItem->PostOperation);
 				}
 				else {
-					DbgPrintEx(0, 0, "   [DCMB] Thread Object Post-Creation : %s+0x%x = 0x%p", DcmbGetBaseNameFromFullName(DriverPath), (DWORD64)CurrentObjectCallbackEntryItem->PostOperation - DriverBase, (DWORD64)CurrentObjectCallbackEntryItem->PostOperation);
+					DbgPrintEx(0, 0, "   [DCMB] Thread Object Post-Creation : %s+0x%x = 0x%p\n", DcmbGetBaseNameFromFullName(DriverPath), (DWORD64)CurrentObjectCallbackEntryItem->PostOperation - DriverBase, (DWORD64)CurrentObjectCallbackEntryItem->PostOperation);
 				}
 			}
 
 			if (ZbzrEnumerateDriver((DWORD64)CurrentObjectCallbackEntryItem->PreOperation, &DriverPath, &DriverBase)) {
 				if (CallbackType == ProcessObjectCreationCallback) {
-					DbgPrintEx(0, 0, "   [DCMB] Process Object Pre-Creation : %s+0x%x = 0x%p", DcmbGetBaseNameFromFullName(DriverPath), (DWORD64)CurrentObjectCallbackEntryItem->PreOperation - DriverBase, (DWORD64)CurrentObjectCallbackEntryItem->PreOperation);
+					DbgPrintEx(0, 0, "   [DCMB] Process Object Pre-Creation : %s+0x%x = 0x%p\n", DcmbGetBaseNameFromFullName(DriverPath), (DWORD64)CurrentObjectCallbackEntryItem->PreOperation - DriverBase, (DWORD64)CurrentObjectCallbackEntryItem->PreOperation);
 				}
 				else {
-					DbgPrintEx(0, 0, "   [DCMB] Thread Object Pre-Creation : %s+0x%x = 0x%p", DcmbGetBaseNameFromFullName(DriverPath), (DWORD64)CurrentObjectCallbackEntryItem->PreOperation - DriverBase, (DWORD64)CurrentObjectCallbackEntryItem->PreOperation);
+					DbgPrintEx(0, 0, "   [DCMB] Thread Object Pre-Creation : %s+0x%x = 0x%p\n", DcmbGetBaseNameFromFullName(DriverPath), (DWORD64)CurrentObjectCallbackEntryItem->PreOperation - DriverBase, (DWORD64)CurrentObjectCallbackEntryItem->PreOperation);
 				}
 			}
 			CurrentObjectCallbackEntryItem = (POB_CALLBACK_ENTRY)CurrentObjectCallbackEntryItem->CallbackList.Flink;
@@ -413,13 +434,13 @@ void DcmbEnumerateCallbacks(DCMB_CALLBACK_TYPE CallbackType, DWORD64 KernelBase)
 			DWORD64 DriverBase = 0;
 			if (ZbzrEnumerateDriver(CurrentCallbackAddress, &DriverPath, &DriverBase)) {
 				if (CallbackType == ProcessCreationCallback) {
-					DbgPrintEx(0, 0, "   [DCMB] Process Creation : %s+0x%x = 0x%p", DcmbGetBaseNameFromFullName(DriverPath), CurrentCallbackAddress - DriverBase, CurrentCallbackAddress);
+					DbgPrintEx(0, 0, "   [DCMB] Process Creation : %s+0x%x = 0x%p\n", DcmbGetBaseNameFromFullName(DriverPath), CurrentCallbackAddress - DriverBase, CurrentCallbackAddress);
 				}
 				else if (CallbackType == ThreadCreationCallback) {
-					DbgPrintEx(0, 0, "   [DCMB] Thread Creation : %s+0x%x = 0x%p", DcmbGetBaseNameFromFullName(DriverPath), CurrentCallbackAddress - DriverBase, CurrentCallbackAddress);
+					DbgPrintEx(0, 0, "   [DCMB] Thread Creation : %s+0x%x = 0x%p\n", DcmbGetBaseNameFromFullName(DriverPath), CurrentCallbackAddress - DriverBase, CurrentCallbackAddress);
 				}
 				else {
-					DbgPrintEx(0, 0, "   [DCMB] Load Image : %s+0x%x = 0x%p", DcmbGetBaseNameFromFullName(DriverPath), CurrentCallbackAddress - DriverBase, CurrentCallbackAddress);
+					DbgPrintEx(0, 0, "   [DCMB] Load Image : %s+0x%x = 0x%p\n", DcmbGetBaseNameFromFullName(DriverPath), CurrentCallbackAddress - DriverBase, CurrentCallbackAddress);
 				}
 			}
 		}
