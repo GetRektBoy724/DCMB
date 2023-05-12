@@ -14,7 +14,8 @@ typedef enum _DCMB_CALLBACK_TYPE {
 	ThreadCreationCallback,
 	ProcessObjectCreationCallback,
 	ThreadObjectCreationCallback,
-	RegistryCallback
+	RegistryCallback,
+    DriverVerificationCallback
 } DCMB_CALLBACK_TYPE;
 
 typedef enum _SYSTEM_INFORMATION_CLASS {
@@ -93,6 +94,25 @@ typedef struct OB_CALLBACK_ENTRY_t {
     KSPIN_LOCK Lock;         // lock object used for synchronization
 } OB_CALLBACK_ENTRY, * POB_CALLBACK_ENTRY;
 
+typedef struct _CALLBACK_OBJECT
+{
+    ULONG Signature;
+    KSPIN_LOCK Lock;
+    LIST_ENTRY RegisteredCallbacks;
+    BOOLEAN AllowMultipleCallbacks;
+    UCHAR reserved[3];
+} CALLBACK_OBJECT;
+
+typedef struct _CALLBACK_REGISTRATION
+{
+    LIST_ENTRY Link;
+    PCALLBACK_OBJECT CallbackObject;
+    PCALLBACK_FUNCTION CallbackFunction;
+    PVOID CallbackContext;
+    ULONG Busy;
+    BOOLEAN UnregisterWaiting;
+} CALLBACK_REGISTRATION, * PCALLBACK_REGISTRATION;
+
 typedef NTSTATUS(NTAPI* PROTOTYPE_ZWQUERYSYSTEMINFORMATION)(SYSTEM_INFORMATION_CLASS info, PVOID infoinout, ULONG len, PULONG retLen);
 
 PCHAR DcmbGetBaseNameFromFullName(PCHAR FullName);
@@ -100,4 +120,5 @@ DWORD64 DcmbGetKernelBase();
 DWORD64 DcmbGetRoutineFromSSDT(DWORD64 KernelBase, WORD FuncIndex);
 WORD DcmbGetRoutineSyscallIndex(LPCSTR RoutineName);
 DWORD64 DcmbGetNotifyRoutineArray(DWORD64 KernelBase, DCMB_CALLBACK_TYPE CallbackType);
+BOOL DcmbEnumerateDriver(DWORD64 CallbackAddress, PCHAR* DriverFound, PDWORD64 FoundDriverBase);
 void DcmbEnumerateCallbacks(DCMB_CALLBACK_TYPE CallbackType, DWORD64 KernelBase);

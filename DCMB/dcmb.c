@@ -208,6 +208,12 @@ DWORD64 DcmbGetNotifyRoutineArray(DWORD64 KernelBase, DCMB_CALLBACK_TYPE Callbac
 			break;
 		}
 
+		case DriverVerificationCallback: {
+			RtlInitUnicodeString(&NotifyRoutineName, L"SeRegisterImageVerificationCallback");
+			NotifyRoutineAddr = MmGetSystemRoutineAddress(&NotifyRoutineName);
+			break;
+		}
+
 		default: {
 			break;
 		}
@@ -256,6 +262,9 @@ DWORD64 DcmbGetNotifyRoutineArray(DWORD64 KernelBase, DCMB_CALLBACK_TYPE Callbac
 			}
 		}
 	}
+	else if (CallbackType == DriverVerificationCallback) {
+		PspNotifyRoutineAddr = NotifyRoutineAddr;
+	}
 	else {
 		for (int i = 0; i < 200; i++) {
 			if (*(PBYTE)(NotifyRoutineAddr + i) == 0xE9 || *(PBYTE)(NotifyRoutineAddr + i) == 0xE8) {
@@ -298,7 +307,17 @@ DWORD64 DcmbGetNotifyRoutineArray(DWORD64 KernelBase, DCMB_CALLBACK_TYPE Callbac
 			if ((*(PBYTE)(PspNotifyRoutineAddr - i) == 0x48 || *(PBYTE)(PspNotifyRoutineAddr - i) == 0x4C) && *(PBYTE)(PspNotifyRoutineAddr - i + 1) == 0x8B) {
 				LONG PspNotifyRoutineArrayOffset = *(PLONG)(PspNotifyRoutineAddr - i + 3);
 				PspNotifyRoutineArrayAddr = PspNotifyRoutineAddr - i + 7 + PspNotifyRoutineArrayOffset;
-				PspNotifyRoutineArrayAddr = *(PDWORD64)(PspNotifyRoutineArrayAddr) + 0xc8;
+				PspNotifyRoutineArrayAddr = *(PDWORD64)(PspNotifyRoutineArrayAddr)+0xc8;
+				break;
+			}
+		}
+	}
+	else if (CallbackType == DriverVerificationCallback) {
+		// we scan for MOV instruction, forwards
+		for (int i = 0; i < 50; i++) {
+			if (*(PBYTE)(PspNotifyRoutineAddr + i) == 0x48 && *(PBYTE)(PspNotifyRoutineAddr + i + 1) == 0x8B) {
+				LONG PspNotifyRoutineArrayOffset = *(PLONG)(PspNotifyRoutineAddr + i + 3);
+				PspNotifyRoutineArrayAddr = PspNotifyRoutineAddr + i + 7 + PspNotifyRoutineArrayOffset;
 				break;
 			}
 		}
@@ -317,7 +336,7 @@ DWORD64 DcmbGetNotifyRoutineArray(DWORD64 KernelBase, DCMB_CALLBACK_TYPE Callbac
 	return PspNotifyRoutineArrayAddr;
 }
 
-BOOL ZbzrEnumerateDriver(DWORD64 CallbackAddress, PCHAR* DriverFound, PDWORD64 FoundDriverBase) {
+BOOL DcmbEnumerateDriver(DWORD64 CallbackAddress, PCHAR* DriverFound, PDWORD64 FoundDriverBase) {
 	PRTL_PROCESS_MODULES ModuleInformation = NULL;
 	NTSTATUS result;
 	ULONG SizeNeeded;
@@ -383,7 +402,7 @@ void DcmbEnumerateCallbacks(DCMB_CALLBACK_TYPE CallbackType, DWORD64 KernelBase)
 
 			PCHAR DriverPath = NULL;
 			DWORD64 DriverBase = 0;
-			if (ZbzrEnumerateDriver(CurrentCallbackAddress, &DriverPath, &DriverBase)) {
+			if (DcmbEnumerateDriver(CurrentCallbackAddress, &DriverPath, &DriverBase)) {
 				DbgPrintEx(0, 0, "   [DCMB] Registry Read/Write : %s+0x%x = 0x%p\n", DcmbGetBaseNameFromFullName(DriverPath), CurrentCallbackAddress - DriverBase, CurrentCallbackAddress);
 			}
 
@@ -399,7 +418,7 @@ void DcmbEnumerateCallbacks(DCMB_CALLBACK_TYPE CallbackType, DWORD64 KernelBase)
 		do {
 			PCHAR DriverPath = NULL;
 			DWORD64 DriverBase = 0;
-			if (ZbzrEnumerateDriver((DWORD64)CurrentObjectCallbackEntryItem->PostOperation, &DriverPath, &DriverBase)) {
+			if (DcmbEnumerateDriver((DWORD64)CurrentObjectCallbackEntryItem->PostOperation, &DriverPath, &DriverBase)) {
 				if (CallbackType == ProcessObjectCreationCallback) {
 					DbgPrintEx(0, 0, "   [DCMB] Process Object Post-Creation : %s+0x%x = 0x%p\n", DcmbGetBaseNameFromFullName(DriverPath), (DWORD64)CurrentObjectCallbackEntryItem->PostOperation - DriverBase, (DWORD64)CurrentObjectCallbackEntryItem->PostOperation);
 				}
@@ -408,7 +427,7 @@ void DcmbEnumerateCallbacks(DCMB_CALLBACK_TYPE CallbackType, DWORD64 KernelBase)
 				}
 			}
 
-			if (ZbzrEnumerateDriver((DWORD64)CurrentObjectCallbackEntryItem->PreOperation, &DriverPath, &DriverBase)) {
+			if (DcmbEnumerateDriver((DWORD64)CurrentObjectCallbackEntryItem->PreOperation, &DriverPath, &DriverBase)) {
 				if (CallbackType == ProcessObjectCreationCallback) {
 					DbgPrintEx(0, 0, "   [DCMB] Process Object Pre-Creation : %s+0x%x = 0x%p\n", DcmbGetBaseNameFromFullName(DriverPath), (DWORD64)CurrentObjectCallbackEntryItem->PreOperation - DriverBase, (DWORD64)CurrentObjectCallbackEntryItem->PreOperation);
 				}
@@ -419,6 +438,20 @@ void DcmbEnumerateCallbacks(DCMB_CALLBACK_TYPE CallbackType, DWORD64 KernelBase)
 			CurrentObjectCallbackEntryItem = (POB_CALLBACK_ENTRY)CurrentObjectCallbackEntryItem->CallbackList.Flink;
 		} while ((DWORD64)CurrentObjectCallbackEntryItem->CallbackList.Flink != (DWORD64)CallbackArrayAddr);
 	}
+	else if (CallbackType == DriverVerificationCallback) {
+		PCALLBACK_OBJECT DriverVerificationCallbackObject = *(PDWORD64)(CallbackArrayAddr);
+		PCALLBACK_REGISTRATION CurrentCallback = (PCALLBACK_REGISTRATION)DriverVerificationCallbackObject->RegisteredCallbacks.Flink;
+
+		while (CurrentCallback != (PCALLBACK_OBJECT)&DriverVerificationCallbackObject->RegisteredCallbacks) {
+			PCHAR DriverPath = NULL;
+			DWORD64 DriverBase = 0;
+			if (DcmbEnumerateDriver(CurrentCallback->CallbackFunction, &DriverPath, &DriverBase)) {
+				DbgPrintEx(0, 0, "   [DCMB] Driver verification : %s+0x%x = 0x%p\n", DcmbGetBaseNameFromFullName(DriverPath), (DWORD64)CurrentCallback->CallbackFunction - DriverBase, (PVOID)CurrentCallback->CallbackFunction);
+			}
+
+			CurrentCallback = CurrentCallback->Link.Flink;
+		}
+	}
 	else {
 		for (int i = 0; i < 64; i++) {
 			DWORD64 CurrentCallback = *(PDWORD64)(CallbackArrayAddr + (i * 8));
@@ -428,11 +461,12 @@ void DcmbEnumerateCallbacks(DCMB_CALLBACK_TYPE CallbackType, DWORD64 KernelBase)
 				continue;
 
 			DWORD64 CurrentCallbackAddress = *(PDWORD64)(CurrentCallback &= ~(1ULL << 3) + 0x1);
+			//DWORD64 CurrentCallbackAddress = *(PDWORD64)(CurrentCallback & 0xfffffffffffffff8);
 
 			// do some checks
 			PCHAR DriverPath = NULL;
 			DWORD64 DriverBase = 0;
-			if (ZbzrEnumerateDriver(CurrentCallbackAddress, &DriverPath, &DriverBase)) {
+			if (DcmbEnumerateDriver(CurrentCallbackAddress, &DriverPath, &DriverBase)) {
 				if (CallbackType == ProcessCreationCallback) {
 					DbgPrintEx(0, 0, "   [DCMB] Process Creation : %s+0x%x = 0x%p\n", DcmbGetBaseNameFromFullName(DriverPath), CurrentCallbackAddress - DriverBase, CurrentCallbackAddress);
 				}
