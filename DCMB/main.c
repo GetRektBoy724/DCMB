@@ -1,4 +1,5 @@
 #include "main.h"
+#include <memory.h>
 
 NTSTATUS DriverEntry(PDRIVER_OBJECT pDriverObject, PUNICODE_STRING pRegistryPath) {
 	//pDriverObject->DriverUnload = UnloadDriver;
@@ -34,6 +35,8 @@ NTSTATUS DriverEntry(PDRIVER_OBJECT pDriverObject, PUNICODE_STRING pRegistryPath
 		DbgPrintEx(0, 0, "[DCMB] Driver verification callback array address : 0x%p\n", (PVOID)DcmbGetNotifyRoutineArray(Kernelbase, DriverVerificationCallback));
 		DcmbEnumerateCallbacks(DriverVerificationCallback, Kernelbase);
 
+		DcmbEnumerateFilters();
+
 		DbgPrintEx(0, 0, "DCMB exiting gracefully... Goodbye!");
 		return STATUS_UNSUCCESSFUL;
 	}except(EXCEPTION_EXECUTE_HANDLER) {
@@ -42,9 +45,9 @@ NTSTATUS DriverEntry(PDRIVER_OBJECT pDriverObject, PUNICODE_STRING pRegistryPath
 	}
 }
 
-/*NTSTATUS UnloadDriver(PDRIVER_OBJECT pDriverObject) {
+NTSTATUS UnloadDriver(PDRIVER_OBJECT pDriverObject) {
 
 	DbgPrintEx(0, 0, "DCMB said Goodbye!\n");
 
 	return STATUS_SUCCESS;
-}*/
+}

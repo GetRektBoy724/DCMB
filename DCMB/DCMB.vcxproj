@@ -99,7 +99,11 @@
     <ClCompile>
       <TreatWarningAsError>false</TreatWarningAsError>
       <BufferSecurityCheck>false</BufferSecurityCheck>
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
     </ClCompile>
+    <Link>
+      <AdditionalDependencies>fltmgr.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">
     <DriverSign>
@@ -120,10 +124,12 @@
   <ItemGroup>
     <ClInclude Include="dcmb.h" />
     <ClInclude Include="main.h" />
+    <ClInclude Include="minifilters.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dcmb.c" />
     <ClCompile Include="main.c" />
+    <ClCompile Include="minifilters.c" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

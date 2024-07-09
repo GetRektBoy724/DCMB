@@ -6,6 +6,7 @@
 #include <ntddndis.h>
 #include <strsafe.h>
 #include <ntifs.h>
+#include <fltKernel.h>
 #pragma once
 
 typedef enum _DCMB_CALLBACK_TYPE {

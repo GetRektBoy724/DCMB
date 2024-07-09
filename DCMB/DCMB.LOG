@@ -1,0 +1,57 @@
+00000001	0.00000000	DCMB said Hello from the kernel!	
+00000002	0.00003970	[DCMB] Kernel base address : 0xFFFFF80340E00000	
+00000003	0.00004280	[DCMB] Load image callback array address : 0xFFFFF80341AEC020	
+00000004	0.00006000	   [DCMB] Load Image : WdFilter.sys+0x4e260 = 0xFFFFF8034577E260	
+00000005	0.00007350	   [DCMB] Load Image : ahcache.sys+0x1eb20 = 0xFFFFF803473BEB20	
+00000006	0.00008640	   [DCMB] Load Image : MpKslDrv.sys+0xbf40 = 0xFFFFF803556EBF40	
+00000007	0.00008920	[DCMB] Process creation callback array address : 0xFFFFF80341AEC420	
+00000008	0.00010400	   [DCMB] Process Creation : ntoskrnl.exe+0x35c050 = 0xFFFFF8034115C050	
+00000009	0.00011700	   [DCMB] Process Creation : cng.sys+0x6dd0 = 0xFFFFF80344EF6DD0	
+00000010	0.00012980	   [DCMB] Process Creation : WdFilter.sys+0x4d7b0 = 0xFFFFF8034577D7B0	
+00000011	0.00014260	   [DCMB] Process Creation : ksecdd.sys+0x1ba40 = 0xFFFFF8033F81BA40	
+00000012	0.00016440	   [DCMB] Process Creation : tcpip.sys+0x4cc0 = 0xFFFFF80345D44CC0	
+00000013	0.00017800	   [DCMB] Process Creation : iorate.sys+0xd930 = 0xFFFFF803462DD930	
+00000014	0.00019070	   [DCMB] Process Creation : CI.dll+0x7de20 = 0xFFFFF80344E7DE20	
+00000015	0.00020350	   [DCMB] Process Creation : dxgkrnl.sys+0x66a0 = 0xFFFFF803468066A0	
+00000016	0.00021640	   [DCMB] Process Creation : peauth.sys+0x43ce0 = 0xFFFFF80354EA3CE0	
+00000017	0.00022930	   [DCMB] Process Creation : MpKslDrv.sys+0xc150 = 0xFFFFF803556EC150	
+00000018	0.00023110	[DCMB] Thread creation callback array address : 0xFFFFF80341AEC220	
+00000019	0.00024530	   [DCMB] Thread Creation : WdFilter.sys+0x4f040 = 0xFFFFF8034577F040	
+00000020	0.00025810	   [DCMB] Thread Creation : WdFilter.sys+0x4eda0 = 0xFFFFF8034577EDA0	
+00000021	0.00027200	   [DCMB] Thread Creation : mmcss.sys+0x1060 = 0xFFFFF80354E11060	
+00000022	0.00028710	   [DCMB] Thread Creation : MpKslDrv.sys+0xbff0 = 0xFFFFF803556EBFF0	
+00000023	0.00030020	   [DCMB] Thread Creation : MpKslDrv.sys+0xc0a0 = 0xFFFFF803556EC0A0	
+00000024	0.00030340	[DCMB] Registry RW callback list head address : 0xFFFFF80341A482A0	
+00000025	0.00032830	   [DCMB] Registry Read/Write : WdFilter.sys+0x3d910 = 0xFFFFF8034576D910	
+00000026	0.00034120	   [DCMB] Registry Read/Write : ntoskrnl.exe+0x5cc3d0 = 0xFFFFF803413CC3D0	
+00000027	0.00052670	[DCMB] PsProcessType object callback list address : 0xFFFFC20846C9A188	
+00000028	0.00083500	[DCMB] PsThreadType object callback list address : 0xFFFFC20846CB4F48	
+00000029	27.07218170	DCMB said Goodbye!	
+00000030	41.38167953	DCMB said Hello from the kernel!	
+00000031	41.38172150	[DCMB] Kernel base address : 0xFFFFF80340E00000	
+00000032	41.38172531	[DCMB] Load image callback array address : 0xFFFFF80341AEC020	
+00000033	41.38174057	   [DCMB] Load Image : WdFilter.sys+0x4e260 = 0xFFFFF8034577E260	
+00000034	41.38175201	   [DCMB] Load Image : ahcache.sys+0x1eb20 = 0xFFFFF803473BEB20	
+00000035	41.38176727	   [DCMB] Load Image : MpKslDrv.sys+0xbf40 = 0xFFFFF803556EBF40	
+00000036	41.38177109	[DCMB] Process creation callback array address : 0xFFFFF80341AEC420	
+00000037	41.38178253	   [DCMB] Process Creation : ntoskrnl.exe+0x35c050 = 0xFFFFF8034115C050	
+00000038	41.38179398	   [DCMB] Process Creation : cng.sys+0x6dd0 = 0xFFFFF80344EF6DD0	
+00000039	41.38180923	   [DCMB] Process Creation : WdFilter.sys+0x4d7b0 = 0xFFFFF8034577D7B0	
+00000040	41.38181686	   [DCMB] Process Creation : ksecdd.sys+0x1ba40 = 0xFFFFF8033F81BA40	
+00000041	41.38183212	   [DCMB] Process Creation : tcpip.sys+0x4cc0 = 0xFFFFF80345D44CC0	
+00000042	41.38184357	   [DCMB] Process Creation : iorate.sys+0xd930 = 0xFFFFF803462DD930	
+00000043	41.38185501	   [DCMB] Process Creation : CI.dll+0x7de20 = 0xFFFFF80344E7DE20	
+00000044	41.38187027	   [DCMB] Process Creation : dxgkrnl.sys+0x66a0 = 0xFFFFF803468066A0	
+00000045	41.38188171	   [DCMB] Process Creation : peauth.sys+0x43ce0 = 0xFFFFF80354EA3CE0	
+00000046	41.38189316	   [DCMB] Process Creation : MpKslDrv.sys+0xc150 = 0xFFFFF803556EC150	
+00000047	41.38189316	[DCMB] Thread creation callback array address : 0xFFFFF80341AEC220	
+00000048	41.38190842	   [DCMB] Thread Creation : WdFilter.sys+0x4f040 = 0xFFFFF8034577F040	
+00000049	41.38191986	   [DCMB] Thread Creation : WdFilter.sys+0x4eda0 = 0xFFFFF8034577EDA0	
+00000050	41.38193130	   [DCMB] Thread Creation : mmcss.sys+0x1060 = 0xFFFFF80354E11060	
+00000051	41.38194656	   [DCMB] Thread Creation : MpKslDrv.sys+0xbff0 = 0xFFFFF803556EBFF0	
+00000052	41.38195801	   [DCMB] Thread Creation : MpKslDrv.sys+0xc0a0 = 0xFFFFF803556EC0A0	
+00000053	41.38196182	[DCMB] Registry RW callback list head address : 0xFFFFF80341A482A0	
+00000054	41.38198853	   [DCMB] Registry Read/Write : WdFilter.sys+0x3d910 = 0xFFFFF8034576D910	
+00000055	41.38199997	   [DCMB] Registry Read/Write : ntoskrnl.exe+0x5cc3d0 = 0xFFFFF803413CC3D0	
+00000056	41.38224792	[DCMB] PsProcessType object callback list address : 0xFFFFC20846C9A188	
+00000057	41.38260651	[DCMB] PsThreadType object callback list address : 0xFFFFC20846CB4F48	
