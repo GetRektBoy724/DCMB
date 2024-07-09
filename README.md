@@ -8,7 +8,8 @@
 - Registry RW Callback (Returns CallbackListHead doubly linked list address)
 - Object Creation Callback (Both Process and Thread object) (Returns PsProcessType's and PsThreadType's CallbackList linked list address)
 - Driver/Image VerificationCallback (Returns ExCbSeImageVerificationDriverInfo callback object address)
+- Minifilter callbacks
 
 # Usage
-Compile them, enable test signing mode, load it, and view the results through DebugView
-![image](https://github.com/GetRektBoy724/DCMB/assets/41237415/b0db02c5-cdc8-40b1-a659-519d5e38914b)
+Compile the Release version, enable test signing mode, load it, and view the results through DebugView
+![image](https://github.com/GetRektBoy724/DCMB/assets/41237415/1de047b9-a6dc-40e3-b380-1b1d73025174)
